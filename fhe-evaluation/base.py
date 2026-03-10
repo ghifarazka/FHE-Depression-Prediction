@@ -9,6 +9,7 @@ client-server codes on client-side/ and server-side/.
 from openfhe import *
 import numpy as np
 import pandas as pd
+import math
 
 # ========================= HELPER FUNCTIONS =========================
 
@@ -47,7 +48,7 @@ print("Inference result (plain):", result_plain)
 multDepth = 2
 scaleModSize = 50
 batchSize = next_power_of_two(n)
-rotations = [1, 2, 4, 8, 16, 32, 64]
+rotations = [2**i for i in range(int(math.log2(batchSize//2)) + 1)] # powers of 2 up to batchSize//2
 
 # Initialize CryptoContext with the specified parameters
 params = CCParamsCKKSRNS()
