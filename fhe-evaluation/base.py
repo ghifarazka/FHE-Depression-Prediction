@@ -84,7 +84,7 @@ ct = cryptoContext.Encrypt(publicKey, pt)
 # ========================== 3. Inference ============================
 
 # Perform encrypted inference (inner product + bias addition)
-result_ct = cryptoContext.EvalInnerProduct(ct, weights_pt, n)
+result_ct = cryptoContext.EvalInnerProduct(ct, weights_pt, batchSize)
 result_ct = cryptoContext.EvalAdd(result_ct, bias_pt)
 
 # ======================= 4. Result Decryption =======================
