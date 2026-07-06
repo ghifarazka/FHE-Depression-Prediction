@@ -9,5 +9,3 @@ The goal of this part of the research was to provide:
 - **[OUT-PRE]** A **data preprocessor** object to preprocess the input data on the FHE implementation
 - **[OUT-DAT]** Train-test **data** for evaluating the FHE implementation
 - **[OUT-MOD]** Model parameter: **weights** and **bias**
-
-It is to be noted that optimizing the model was NOT the focus of the research.
