@@ -48,7 +48,7 @@ print("Inference result (plain):", result_plain)
 
 # Set up CKKS parameters
 multDepth = 1       # 1 multiplication operation
-scaleModSize = 50   # theoretically 1-digit precision
+scaleModSize = 50   # theoretically 15-digit precision
 batchSize = next_power_of_two(n)
 rotations = [2**i for i in range(int(math.log2(batchSize//2)) + 1)] # powers of 2 up to batchSize//2
 
