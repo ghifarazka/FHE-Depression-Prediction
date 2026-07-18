@@ -2,8 +2,10 @@
 base.py
 
 Base implementation of the model inference using and not using FHE. 
-This base code will be expanded into the evaluation code eval.py and 
-client-server codes on client-side/ and server-side/. 
+The base code will then be evaluated across 4 metrics in 
+`eval-fhe-implementation/` and `eval-communication-cost/`. Finally, 
+the code will be expanded into client and server components in 
+`../client-side/` and `../server-side/`. 
 """
 
 from openfhe import *
@@ -45,8 +47,8 @@ print("Inference result (plain):", result_plain)
 # ========= 1. Set up CryptoContext, KeyGen, Model Encoding ==========
 
 # Set up CKKS parameters
-multDepth = 2
-scaleModSize = 50
+multDepth = 1       # 1 multiplication operation
+scaleModSize = 50   # theoretically 1-digit precision
 batchSize = next_power_of_two(n)
 rotations = [2**i for i in range(int(math.log2(batchSize//2)) + 1)] # powers of 2 up to batchSize//2
 
@@ -96,6 +98,10 @@ result_fhe = result_fhe.GetRealPackedValue()[0]
 
 # Slot 0 should contain the inner product + bias result
 print("Inference result (encrypted):", result_fhe)
+
+# Print the relative error between the plain and encrypted results
+rel_error = abs(result_plain - result_fhe) / (abs(result_plain) + 1e-10)  # avoid division by zero
+print("Relative error:", rel_error)
 
 # ========================= CLEAN UP =================================
 
