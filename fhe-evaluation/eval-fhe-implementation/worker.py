@@ -93,8 +93,8 @@ def main():
     # ── INFERENCE (ENCRYPTED) ──────────────────────────────────────
     try:
         from openfhe import (
-            CCParamsCKKSRNS, GenCryptoContext, PKESchemeFeature,
-            ClearEvalMultKeys, ReleaseAllContexts,
+            CCParamsCKKSRNS, GenCryptoContext,
+            PKESchemeFeature, ReleaseAllContexts,
         )
 
         batchSize = next_power_of_two(n)
@@ -106,9 +106,12 @@ def main():
         # ── 1. Setup ───────────────────────────────────────────────
         t0 = time.perf_counter()
 
+        multDepth = 1
+        scaleModSize = 50
+
         params = CCParamsCKKSRNS()
-        params.SetMultiplicativeDepth(1)
-        params.SetScalingModSize(50)
+        params.SetMultiplicativeDepth(multDepth)
+        params.SetScalingModSize(scaleModSize)
         params.SetBatchSize(batchSize)
         cryptoContext = GenCryptoContext(params)
 
@@ -121,7 +124,6 @@ def main():
         publicKey = keypair.publicKey
         secretKey = keypair.secretKey
 
-        cryptoContext.EvalMultKeyGen(secretKey)
         cryptoContext.EvalRotateKeyGen(secretKey, rotations)
 
         weights_pt = cryptoContext.MakeCKKSPackedPlaintext(weights)
@@ -168,7 +170,6 @@ def main():
         result["result_fhe"] = float(result_fhe)
 
         # ── Cleanup ────────────────────────────────────────────────
-        ClearEvalMultKeys()
         cryptoContext.ClearEvalAutomorphismKeys()
         ReleaseAllContexts()
 

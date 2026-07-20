@@ -47,7 +47,7 @@ w_tim = csv.writer(f_tim)
 w_mem = csv.writer(f_mem)
 w_err = csv.writer(f_err)
 
-w_acc.writerow(["sample_id", "result_plain", "result_fhe", "rel_error"])
+w_acc.writerow(["sample_id", "result_plain", "result_fhe", "abs_error", "rel_error"])
 w_tim.writerow(["sample_id", "time_plain", "time_fhe_setup", "time_fhe_encrypt",
                 "time_fhe_inference", "time_fhe_decrypt", "time_fhe_total", "time_slowdown"])
 w_mem.writerow(["sample_id", "mem_plain", "mem_fhe_setup", "mem_fhe_encrypt",
@@ -168,12 +168,13 @@ for sample_idx in range(NUM_SAMPLES):
     # mem_fhe_decrypt is the final cumulative RSS snapshot = peak total FHE memory
     mem_fhe_total  = mem_fhe_decrypt
 
+    abs_error     = abs(result_fhe - result_plain)
     rel_error     = abs(result_fhe - result_plain) / (abs(result_plain) + EPSILON)
     time_slowdown = time_fhe_total / (time_plain + EPSILON)
     mem_overhead  = mem_fhe_total  / (mem_plain  + EPSILON)
 
     # ── Write rows ─────────────────────────────────────────────────
-    w_acc.writerow([sample_idx, result_plain, result_fhe, rel_error])
+    w_acc.writerow([sample_idx, result_plain, result_fhe, abs_error, rel_error])
 
     w_tim.writerow([
         sample_idx,
