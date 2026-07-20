@@ -40,7 +40,6 @@ bias = np.loadtxt("model/bias.txt").tolist()
 multiplied = [x[i] * weights[i] for i in range(len(x))]
 multiplied_sum = sum(multiplied)
 result_plain = multiplied_sum + bias
-print("Inference result (plain):", result_plain)
 
 # ====================== INFERENCE (ENCRYPTED) =======================
 
@@ -70,8 +69,7 @@ keypair = cryptoContext.KeyGen()
 publicKey = keypair.publicKey
 secretKey = keypair.secretKey
 
-# Generate keys for multiplication and rotation operations
-cryptoContext.EvalMultKeyGen(secretKey)
+# Generate a key for rotation operations
 cryptoContext.EvalRotateKeyGen(secretKey, rotations)
 
 # Convert weights and bias to CKKS plaintexts
@@ -94,9 +92,17 @@ result_ct = cryptoContext.EvalAdd(result_ct, bias_pt)
 
 # Decrypt the result
 result_fhe = cryptoContext.Decrypt(result_ct, secretKey)
-result_fhe = result_fhe.GetRealPackedValue()[0]
 
 # Slot 0 should contain the inner product + bias result
+result_fhe = result_fhe.GetRealPackedValue()[0]
+
+# =========================== PRINT RESULTS ==========================
+
+# Print the ring dimension of the CryptoContext (OpenFHE sets 128-bit security by default)
+print("CryptoContext ring dimension:", cryptoContext.GetRingDimension())
+
+# Print the results of both plain and encrypted inference
+print("Inference result (plain):", result_plain)
 print("Inference result (encrypted):", result_fhe)
 
 # Print the relative error between the plain and encrypted results
@@ -106,6 +112,5 @@ print("Relative error:", rel_error)
 # ========================= CLEAN UP =================================
 
 # Clean CryptoContext
-ClearEvalMultKeys()
 cryptoContext.ClearEvalAutomorphismKeys()
 ReleaseAllContexts()
