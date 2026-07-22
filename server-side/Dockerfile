@@ -33,7 +33,7 @@ RUN pip install --upgrade pip \
 
 # Copy application code
 COPY server.py .
-COPY models ./models
+COPY model ./model
 
 # Expose Flask port
 EXPOSE 8000

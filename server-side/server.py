@@ -12,6 +12,15 @@ import base64
 
 # ========================= HELPER FUNCTIONS =========================
 
+def next_power_of_two(x):
+    """
+    Returns the next power of 2 after x.
+    If x <= 1, returns 1.
+    """
+    if x <= 1:
+        return 1
+    return 1 << (x - 1).bit_length()
+
 def serialize_to_base64(obj):
     """
     Takes  any FHE  object and  turns it into 
@@ -33,29 +42,6 @@ def deserialize_CryptoContext_from_base64(cryptoContext_ser):
         bin_str = base64.b64decode(cryptoContext_ser)
         cc = DeserializeCryptoContextString(bin_str, BINARY)
         return cc
-    except Exception as e:
-        raise RuntimeError(f"Error: {e}")
-
-def deserialize_PublicKey_from_base64(publicKey_ser):
-    """
-    Takes  base64  and   turns  it  into  FHE 
-    PublicKey object.
-    """
-    try:
-        bin_str = base64.b64decode(publicKey_ser)
-        pk = DeserializePublicKeyString(bin_str, BINARY)
-        return pk
-    except Exception as e:
-        raise RuntimeError(f"Error: {e}")
-
-def deserialize_EvalMultKey_from_base64(evalMultKey_ser):
-    """
-    Takes  base64  and  installs  EvalMultKey 
-    into the CryptoContext.
-    """
-    try:
-        bin_str = base64.b64decode(evalMultKey_ser)
-        DeserializeEvalMultKeyString(bin_str, BINARY)
     except Exception as e:
         raise RuntimeError(f"Error: {e}")
 
@@ -89,24 +75,17 @@ app = Flask(__name__)
 @app.route("/fhe-predict", methods=["POST"])
 def fhe_predict():
     """
-    Accepts an encrypted vector, CryptoContext, and Public Key, then 
+    Accepts an encrypted vector, CryptoContext, and RotateKey, then 
     sends back the encrypted result.
     """
     try:
         data = request.get_json()
 
-        # 1. Deserialize CryptoContext, PublicKey, and Ciphertext
+        # 1. Deserialize CryptoContext, RotateKey, and Ciphertext
 
         cc_ser = data["cryptoContext"]
         cryptoContext = deserialize_CryptoContext_from_base64(cc_ser)
         assert isinstance(cryptoContext, CryptoContext)
-
-        pk_ser = data["publicKey"]
-        publicKey = deserialize_PublicKey_from_base64(pk_ser)
-        assert isinstance(publicKey, PublicKey)
-
-        evalmult_ser = data["evalMultKey"]
-        deserialize_EvalMultKey_from_base64(evalmult_ser)
 
         evalauto_ser = data["evalAutomorphismKey"]
         deserialize_EvalAutomorphismKey_from_base64(evalauto_ser)
@@ -119,31 +98,22 @@ def fhe_predict():
 
         # 2. Load and encode models
 
-        weights = np.loadtxt("models/weights.txt")
-        intercept = np.loadtxt("models/intercept.txt")
+        weights = np.loadtxt("model/weights.txt")
+        bias = np.loadtxt("model/bias.txt")
         n = len(weights.tolist())
+        batchSize = next_power_of_two(n)
 
         print("---- Model Loaded! ----")
 
         weights_pt = cryptoContext.MakeCKKSPackedPlaintext(weights.tolist())
-        bias_pt = cryptoContext.MakeCKKSPackedPlaintext([intercept]*n)
+        bias_pt = cryptoContext.MakeCKKSPackedPlaintext([bias]*n)
 
-        # 3. Evaluate
+        # 3. Inference (Encrypted)
 
         print("---- Performing Computation... ----")
 
-        ct_mul = cryptoContext.EvalMult(ct, weights_pt) 
-
-        step1 = cryptoContext.EvalAdd(ct_mul, cryptoContext.EvalRotate(ct_mul, 1))
-        step2 = cryptoContext.EvalAdd(step1, cryptoContext.EvalRotate(step1, 2))
-        step3 = cryptoContext.EvalAdd(step2, cryptoContext.EvalRotate(step2, 4))
-        step4 = cryptoContext.EvalAdd(step3, cryptoContext.EvalRotate(step3, 8))
-        step5 = cryptoContext.EvalAdd(step4, cryptoContext.EvalRotate(step4, 16))
-        step6 = cryptoContext.EvalAdd(step5, cryptoContext.EvalRotate(step5, 32))
-
-        result_ct = cryptoContext.EvalAdd(step6, bias_pt)
-
-        ClearEvalMultKeys()
+        result_ct = cryptoContext.EvalInnerProduct(ct, weights_pt, batchSize)
+        result_ct = cryptoContext.EvalAdd(result_ct, bias_pt)
 
         print("---- Computation Completed! ----")
 
@@ -157,6 +127,18 @@ def fhe_predict():
 
     except Exception as e:
         raise RuntimeError(f"Error: {e}")
+
+    # 5. Cleanup
+    finally:
+        try:
+            if cryptoContext is not None:
+                cryptoContext.ClearEvalAutomorphismKeys()
+        except Exception:
+            pass
+        try:
+            ReleaseAllContexts()
+        except Exception:
+            pass
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=8000, debug=False)
