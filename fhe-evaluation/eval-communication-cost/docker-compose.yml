@@ -1,0 +1,11 @@
+services:
+  comm-server:
+    build: .
+    container_name: comm-server
+    ports:
+      - "8001:8000"
+    restart: unless-stopped
+    environment:
+      - FLASK_ENV=production
+    mem_limit: 1g
+    cpus: 0.5

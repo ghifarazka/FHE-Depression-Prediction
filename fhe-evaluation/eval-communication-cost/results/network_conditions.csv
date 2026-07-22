@@ -1,0 +1,2 @@
+timestamp,target_host,iperf_port,upload_mbps,download_mbps,ping_min_ms,ping_avg_ms,ping_max_ms,ping_mdev_ms
+2026-07-22T00:23:42.001660+00:00,148.230.103.61,5201,49.649377566004375,94.97697542061367,4.521,5.593,8.222,1.338
