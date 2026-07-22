@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <!-- Bootstrap CSS CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>FHE Depression Predictor</title>
+    <style>
+      body { padding-top: 2rem; }
+      .step-icon { width: 1.5rem; display: inline-block; text-align: center; }
+      #progress-panel .list-group-item.step-active { font-weight: 600; }
+      #progress-panel .list-group-item.step-done { color: #6c757d; }
+    </style>
+  </head>
+
+  <body>
+    <div class="container px-5">
+      <h1 class="mb-3">FHE Depression Predictor</h1>
+      <h3 class="mb-3">Welcome!</h3>
+      <p>
+        This platform presents a secure, research-oriented assessment based on the Depression Anxiety Stress Scales (DASS-42) questionnaire. The collected responses are processed using a machine learning model to estimate the user’s depression severity level. To ensure strict data confidentiality, all computations are performed using Fully Homomorphic Encryption (FHE), allowing prediction on encrypted data without revealing the user’s responses at any stage. This system is intended for academic and experimental purposes and does not replace professional clinical evaluation.
+      </p>
+
+      <form id="demo-form">
+        <div id="form-alert" aria-live="polite"></div>
+
+        <div class="mb-3">
+          <label for="server-url" class="form-label"><strong>Server URL</strong></label>
+          <input type="url" class="form-control" id="server-url" name="server_url" value="http://127.0.0.1:8000" required>
+          <div class="form-text">Address of the remote FHE inference server (default: your local server-side instance on port 8000). Only encrypted data is ever sent here.</div>
+        </div>
+
+        <h3 class="mt-4">Stress & Anxiety Scales</h3>
+
+        {% for q_name, q_label, options in fields.dass %}
+          <div class="card p-3 mb-3">
+            <label class="form-label d-block mb-2"><strong>{{ q_label }}</strong></label>
+
+            {% for val, opt_label in options %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="{{ q_name }}" id="{{ q_name }}_{{ loop.index }}" value="{{ val }}">
+                <label class="form-check-label" for="{{ q_name }}_{{ loop.index }}">{{ opt_label }}</label>
+              </div>
+            {% endfor %}
+
+          </div>
+        {% endfor %}
+
+
+        <h3 class="mt-4">Personality Assessment</h3>
+
+        {% for q_name, q_label, options in fields.tipi %}
+          <div class="card p-3 mb-3">
+            <label class="form-label d-block mb-2"><strong>{{ q_label }}</strong></label>
+
+            {% for val, opt_label in options %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="{{ q_name }}" id="{{ q_name }}_{{ loop.index }}" value="{{ val }}">
+                <label class="form-check-label" for="{{ q_name }}_{{ loop.index }}">{{ opt_label }}</label>
+              </div>
+            {% endfor %}
+
+          </div>
+        {% endfor %}
+
+
+        <h3 class="mt-4">Demographic Survey</h3>
+
+        {% for q_name, q_label, options in fields.demographics %}
+          <div class="card p-3 mb-3">
+            <label class="form-label d-block mb-2"><strong>{{ q_label }}</strong></label>
+
+            {% for val, opt_label in options %}
+              <div class="form-check">
+                <input class="form-check-input" type="radio" name="{{ q_name }}" id="{{ q_name }}_{{ loop.index }}" value="{{ val }}">
+                <label class="form-check-label" for="{{ q_name }}_{{ loop.index }}">{{ opt_label }}</label>
+              </div>
+            {% endfor %}
+
+          </div>
+        {% endfor %}
+
+
+        <div class="mt-3">
+          <!-- Button will validate and submit the collected answers -->
+          <button type="reset" class="btn btn-secondary" id="clear-btn">Clear</button>
+          <button type="button" id="submit-btn" class="btn btn-primary">Submit</button>
+        </div>
+
+      </form>
+
+      <!-- Progress panel: shown in place of the form while the FHE round-trip runs -->
+      <div id="progress-panel" class="card p-4 mb-3" style="display:none;">
+        <h4 class="mb-3">
+          <span class="spinner-border spinner-border-sm text-primary me-2" role="status" aria-hidden="true"></span>
+          Processing your assessment…
+        </h4>
+        <ul class="list-group mb-3" id="progress-steps">
+          <li class="list-group-item d-flex align-items-center" data-match="Preparing">
+            <span class="step-icon me-2">○</span> Preparing your answers
+          </li>
+          <li class="list-group-item d-flex align-items-center" data-match="Encrypting">
+            <span class="step-icon me-2">○</span> Encrypting your data
+          </li>
+          <li class="list-group-item d-flex align-items-center" data-match="Sending">
+            <span class="step-icon me-2">○</span> Sending encrypted data to server
+          </li>
+          <li class="list-group-item d-flex align-items-center" data-match="Waiting">
+            <span class="step-icon me-2">○</span> Waiting for the server to compute
+          </li>
+          <li class="list-group-item d-flex align-items-center" data-match="Decrypting">
+            <span class="step-icon me-2">○</span> Decrypting your result
+          </li>
+        </ul>
+        <div class="text-muted" id="progress-current-status">Starting…</div>
+      </div>
+
+      <div class="mb-5" aria-hidden="true"></div>
+
+    </div>
+
+      <script>
+        (function(){
+          const form = document.getElementById('demo-form');
+          const alertBox = document.getElementById('form-alert');
+          const submitBtn = document.getElementById('submit-btn');
+          const progressPanel = document.getElementById('progress-panel');
+          const progressStatusEl = document.getElementById('progress-current-status');
+          const stepEls = Array.from(document.querySelectorAll('#progress-steps li'));
+
+          function showAlert(message, type='danger'){
+            alertBox.innerHTML = `<div class="alert alert-${type}" role="alert">${message}</div>`;
+          }
+
+          function clearAlert(){ alertBox.innerHTML = ''; }
+
+          function updateSteps(statusText){
+            progressStatusEl.textContent = statusText;
+            const matchIndex = stepEls.findIndex(li => statusText.includes(li.dataset.match));
+            stepEls.forEach((li, i) => {
+              const icon = li.querySelector('.step-icon');
+              li.classList.remove('step-active', 'step-done');
+              if (matchIndex === -1) return;
+              if (i < matchIndex) { icon.textContent = '✓'; li.classList.add('step-done'); }
+              else if (i === matchIndex) { icon.textContent = '➤'; li.classList.add('step-active'); }
+              else { icon.textContent = '○'; }
+            });
+          }
+
+          function resetSteps(){
+            stepEls.forEach(li => {
+              li.classList.remove('step-active', 'step-done');
+              li.querySelector('.step-icon').textContent = '○';
+            });
+            progressStatusEl.textContent = 'Starting…';
+          }
+
+          function showForm(){
+            form.style.display = '';
+            progressPanel.style.display = 'none';
+          }
+
+          function showProgress(){
+            resetSteps();
+            form.style.display = 'none';
+            progressPanel.style.display = '';
+          }
+
+          async function pollUntilDone(jobId){
+            while (true){
+              const resp = await fetch(`/status/${jobId}`);
+              if (!resp.ok) throw new Error('Lost track of the job (status ' + resp.status + ')');
+              const job = await resp.json();
+              updateSteps(job.status || '');
+              if (job.done){
+                if (job.error) throw new Error(job.error);
+                return job;
+              }
+              await new Promise(r => setTimeout(r, 600));
+            }
+          }
+
+          submitBtn.addEventListener('click', async () => {
+            clearAlert();
+
+            // find all radio inputs and unique question names
+            const radios = Array.from(form.querySelectorAll('input[type="radio"]'));
+            const names = [...new Set(radios.map(r => r.name).filter(n => n))];
+
+            // Validate: every question name must have a checked radio
+            const missing = [];
+            const result = {};
+            for (const name of names){
+              const checked = form.querySelector(`input[name="${name}"]:checked`);
+              if (!checked){
+                missing.push(name);
+              } else {
+                result[name] = checked.value;
+              }
+            }
+
+            if (missing.length > 0){
+              showAlert(`Please answer all questions.`);
+              const firstMissing = form.querySelector(`input[name="${missing[0]}"]`);
+              if (firstMissing) firstMissing.focus();
+              return;
+            }
+
+            const serverUrlInput = form.querySelector('#server-url');
+            const serverUrl = serverUrlInput ? serverUrlInput.value.trim() : '';
+            if (!serverUrl) {
+              showAlert('Please provide the Server URL.', 'danger');
+              if (serverUrlInput) serverUrlInput.focus();
+              return;
+            }
+
+            try {
+              submitBtn.disabled = true;
+              showProgress();
+
+              const body = { SERVER_URL: serverUrl, FORM_DATA: result };
+
+              const submitResp = await fetch('/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(body)
+              });
+
+              if (!submitResp.ok) {
+                const errJson = await submitResp.json().catch(() => ({}));
+                throw new Error(errJson.error || ('Server returned ' + submitResp.status));
+              }
+
+              const { job_id } = await submitResp.json();
+              await pollUntilDone(job_id);
+
+              // Everything is ready -- this redirect is effectively instant
+              // since all the slow work already happened above.
+              window.location.href = `/result?job_id=${encodeURIComponent(job_id)}`;
+
+            } catch (err){
+              showForm();
+              showAlert('Submission failed: ' + err.message, 'danger');
+              console.error(err);
+            } finally {
+              submitBtn.disabled = false;
+            }
+          });
+        })();
+      </script>
+
+  </body>
+
+</html>

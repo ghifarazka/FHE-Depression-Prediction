@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+
+  <head>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Your Result — FHE Depression Predictor</title>
+    <style>
+      body { padding-top: 3rem; }
+      .bg-severe { background-color: #fd7e14; }
+    </style>
+  </head>
+
+  <body>
+    <div class="container px-5" style="max-width: 700px;">
+
+      {% if error %}
+
+        <div class="alert alert-warning" role="alert">{{ error }}</div>
+        <a href="/" class="btn btn-primary">Back to form</a>
+
+      {% else %}
+
+        <h1 class="mb-4">Your Result</h1>
+
+        <div class="card p-4 mb-4 text-center">
+          <div class="text-muted mb-1">Depression Score</div>
+          <div class="display-4 mb-3">{{ "%.2f"|format(score) }}</div>
+          <div>
+            <span class="badge {{ badge_class }} fs-5 px-3 py-2">{{ level }}</span>
+          </div>
+        </div>
+
+        <table class="table table-bordered">
+          <thead>
+            <tr><th></th><th>Depression Score Range</th></tr>
+          </thead>
+          <tbody>
+            <tr class="{{ 'table-active' if level == 'Normal' else '' }}"><td>Normal</td><td>0–9</td></tr>
+            <tr class="{{ 'table-active' if level == 'Mild' else '' }}"><td>Mild</td><td>10–13</td></tr>
+            <tr class="{{ 'table-active' if level == 'Moderate' else '' }}"><td>Moderate</td><td>14–20</td></tr>
+            <tr class="{{ 'table-active' if level == 'Severe' else '' }}"><td>Severe</td><td>21–27</td></tr>
+            <tr class="{{ 'table-active' if level == 'Extremely Severe' else '' }}"><td>Extremely Severe</td><td>28+</td></tr>
+          </tbody>
+        </table>
+
+        <p class="text-muted small">
+          This result was produced by a research-oriented machine learning model and does not replace a professional clinical evaluation. If you are struggling, please consider reaching out to a mental health professional.
+        </p>
+
+        <a href="/" class="btn btn-primary">Take the assessment again</a>
+
+      {% endif %}
+
+    </div>
+  </body>
+
+</html>

@@ -1,9 +1,20 @@
+"""
+DEBUG_client.py
+
+Basic client code to test the server-side FHE inference endpoint. Takes a
+singular example input from the DASS-42 form (before preprocessing), setup a 
+CryptoContext, generate relevant keys, encrypts the input, serializes the 
+needed components, send them to the server, and decrypts the result. This 
+code is only for debugging purposes and is not part of the final client-side 
+implementation.
+"""
+
 from openfhe import *
-import numpy as np
 import pandas as pd
 import joblib
 import base64
 import requests
+import math
 
 # ========================= HELPER FUNCTIONS =========================
 
@@ -24,18 +35,6 @@ def serialize_to_base64(obj):
 		ser = Serialize(obj, BINARY)
 		base64_str = base64.b64encode(ser).decode("utf-8")
 		return base64_str
-	except Exception as e:
-		raise RuntimeError(f"Error: {e}")
-
-def serialize_EvalMultKey_to_base64():
-	"""
-	Takes  EvalMultKey  and  turns  it   into 
-	base64.
-	"""
-	try:
-		ser = SerializeEvalMultKeyString(BINARY, "")
-		evalMultKey_ser = base64.b64encode(ser).decode("utf-8")
-		return evalMultKey_ser
 	except Exception as e:
 		raise RuntimeError(f"Error: {e}")
 
@@ -63,10 +62,11 @@ def deserialize_Ciphertext_from_base64(ciphertext_ser):
     except Exception as e:
         raise RuntimeError(f"Error: {e}")
 
-# ==================== 1. Load & Preprocess Data ====================
+# ===================== LOAD & PREPROCESS DATA =======================
 
 preprocessor = joblib.load("preprocessor.joblib")
 
+# Example input from the form
 X_new = pd.DataFrame([{
     "Q1A": 0, "Q2A": 0, "Q4A": 0, "Q6A": 3, "Q7A": 1, "Q8A": 1,
     "Q9A": 1, "Q11A": 3, "Q12A": 2, "Q14A": 0, "Q15A": 3, "Q18A": 2,
@@ -84,64 +84,70 @@ X_new_pre = preprocessor.transform(X_new)
 x = X_new_pre.flatten().tolist()
 n = len(x)
 
-# ==================== 2. Set up CryptoContext ====================
+# ================= 1. Set up CryptoContext & KeyGen =================
 
-multDepth = 2
-scaleModSize = 50
+# Set up CKKS parameters
+multDepth = 1       # 1 multiplication operation
+scaleModSize = 50   # theoretically 15-digit precision
 batchSize = next_power_of_two(n)
+rotations = [2**i for i in range(int(math.log2(batchSize//2)) + 1)] # powers of 2 up to batchSize//2
 
+# Initialize CryptoContext with the specified parameters
 params = CCParamsCKKSRNS()
 params.SetMultiplicativeDepth(multDepth)
 params.SetScalingModSize(scaleModSize)
 params.SetBatchSize(batchSize)
 cryptoContext = GenCryptoContext(params)
 
-# enable the common features used in ML
+# Enable cryptographic features commonly used in ML
 cryptoContext.Enable(PKESchemeFeature.PKE)
 cryptoContext.Enable(PKESchemeFeature.KEYSWITCH)
 cryptoContext.Enable(PKESchemeFeature.LEVELEDSHE)
+cryptoContext.Enable(PKESchemeFeature.ADVANCEDSHE)
 
-# ==================== 3. Key Generation ====================
-
+# Generate public and secret keys
 keypair = cryptoContext.KeyGen()
 publicKey = keypair.publicKey
 secretKey = keypair.secretKey
 
-cryptoContext.EvalMultKeyGen(secretKey) 
-rotations = [1, 2, 4, 8, 16, 32]
+# Generate a key for rotation operations
 cryptoContext.EvalRotateKeyGen(secretKey, rotations)
 
-# ==================== 4. Data Encryption ====================
+# ======================= 2. Data Encryption =========================
 
+# Encrypt the input data
 pt = cryptoContext.MakeCKKSPackedPlaintext(x)
 ct = cryptoContext.Encrypt(publicKey, pt)
 
-# ==================== 5. Serializations ====================
+# ======================== 3. Serializations =========================
 
+# Serialize CryptoContext, RotateKey, and Ciphertext to base64
 cc_ser = serialize_to_base64(cryptoContext)
-pk_ser = serialize_to_base64(publicKey)
-evalmult_ser = serialize_EvalMultKey_to_base64()
 evalauto_ser = serialize_EvalAutomorphismKey_to_base64()
 ct_ser = serialize_to_base64(ct)
 
-# ==================== 6. Send to Server ====================
+# =============== 4. Send to Server & Receive Result =================
 
-SERVER_URL = "http://13.210.221.158:8000"
+# Replace with the server's URL
+SERVER_URL = "http://148.230.103.61:8000/fhe-predict"
+# SERVER_URL = "http://localhost:8000/fhe-predict"
 
+# Send CryptoContext, RotateKey, and Ciphertext to the server
 payload = {
 	"cryptoContext": cc_ser,
-	"publicKey": pk_ser,
-	"evalMultKey": evalmult_ser,
 	"evalAutomorphismKey": evalauto_ser,
 	"ciphertext": ct_ser
 }
-result = requests.post(SERVER_URL + "/fhe-predict", json=payload)
+result = requests.post(SERVER_URL, json=payload)
 resultEncrypted_ser = result.json()["resultEncrypted"]
 
-# ==================== 7. Result Decryption ====================
+# print("Server response:", result.status_code, result.text)
+
+# ==================== 5. Result Decryption ====================
 
 resultEncrypted = deserialize_Ciphertext_from_base64(resultEncrypted_ser)
 result = cryptoContext.Decrypt(resultEncrypted, secretKey)
-result = result.GetRealPackedValue()
-# Because of slot-sum, every slot should be the inner product + bias (e.g. single repeated value)
-print("Inner product (take slot 0):", result[0])
+
+# Slot 0 should contain the inner product + bias result
+result = result.GetRealPackedValue()[0]
+print("Inner product (take slot 0):", result)
