@@ -1,0 +1,5 @@
+component,bytes_raw,bytes_base64,pct_of_total_base64
+CryptoContext,593,792,0.0035949787950720464
+RotateKey (EvalAutomorphismKey),15734671,20979564,95.22864609830415
+Ciphertext,787779,1050372,4.767758922900778
+TOTAL,16523043,22030728,100.0
