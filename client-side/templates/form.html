@@ -20,7 +20,7 @@
       <h1 class="mb-3">FHE Depression Predictor</h1>
       <h3 class="mb-3">Welcome!</h3>
       <p>
-        This platform presents a secure, research-oriented assessment based on the Depression Anxiety Stress Scales (DASS-42) questionnaire. The collected responses are processed using a machine learning model to estimate the user’s depression severity level. To ensure strict data confidentiality, all computations are performed using Fully Homomorphic Encryption (FHE), allowing prediction on encrypted data without revealing the user’s responses at any stage. This system is intended for academic and experimental purposes and does not replace professional clinical evaluation.
+        This platform presents a secure, research-oriented assessment based on the Depression Anxiety Stress Scales (DASS-42) questionnaire. The collected responses are processed using a machine learning model to estimate the user’s depression severity level. To ensure strict data confidentiality, all computations are performed using Fully Homomorphic Encryption (FHE), allowing prediction on encrypted data without revealing the user’s responses at any stage. This system is intended for academic and experimental purposes and should not be used for genuine clinical evaluation.
       </p>
 
       <form id="demo-form">
@@ -29,7 +29,7 @@
         <div class="mb-3">
           <label for="server-url" class="form-label"><strong>Server URL</strong></label>
           <input type="url" class="form-control" id="server-url" name="server_url" value="http://127.0.0.1:8000" required>
-          <div class="form-text">Address of the remote FHE inference server (default: your local server-side instance on port 8000). Only encrypted data is ever sent here.</div>
+          <div class="form-text">Address of the remote FHE inference server (default: localhost port 8000)</div>
         </div>
 
         <h3 class="mt-4">Stress & Anxiety Scales</h3>
