@@ -141,6 +141,9 @@ payload = {
 result = requests.post(SERVER_URL, json=payload)
 resultEncrypted_ser = result.json()["resultEncrypted"]
 
+with open("payload_sample.txt", "w") as f:
+    print(payload, file=f)
+
 # print("Server response:", result.status_code, result.text)
 
 # ==================== 5. Result Decryption ====================
